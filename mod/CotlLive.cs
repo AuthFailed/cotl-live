@@ -31,7 +31,7 @@ using UnityEngine.SceneManagement;
 [BepInPlugin("chrsnv.cotl.live", "COTL Live", Version)]
 public partial class CotlLive : BaseUnityPlugin
 {
-    const string Version = "0.3.0";
+    const string Version = "0.3.1";
     const int FirstPort = 47820, Ports = 5;
     ConfigEntry<string> allowed;
     HttpListener listener;

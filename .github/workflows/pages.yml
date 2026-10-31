@@ -21,8 +21,14 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
         with:
           node-version: "24"
-      - run: node --check site/app.js
-      - run: shellcheck mod/build.sh
+      - name: Check every script the page loads
+        run: |
+          for src in $(grep -oE '<script[^>]+src="[^"]+"' site/index.html | sed -E 's/.*src="([^"]+)"/\1/'); do
+            test -f "site/$src" || { echo "site/index.html loads $src, which is missing"; exit 1; }
+            node --check "site/$src"
+            echo "checked site/$src"
+          done
+      - run: shellcheck mod/build.sh tools/test/*.sh
 
   deploy:
     needs: check
