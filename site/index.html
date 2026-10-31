@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>COTL Live</title>
+<meta name="description" content="Control your running Cult of the Lamb from the browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Grenze:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<header class="bar">
+  <div class="wrap bar-row">
+    <a class="brand" href="#">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c-3 2-5 4.5-5 8a5 5 0 0 0 10 0c0-3.5-2-6-5-8z"/><path d="M9 4.5C7 3.5 5 3.6 4 4.5M15 4.5c2-1 4-.9 5 0"/><circle cx="10" cy="11.5" r=".6" fill="currentColor"/><circle cx="14" cy="11.5" r=".6" fill="currentColor"/></svg>
+      <span>COTL Live</span>
+    </a>
+    <span id="conn" class="pill" hidden><span class="dot" aria-hidden="true"></span><span id="conn-text"></span></span>
+    <button id="disconnect" class="btn" hidden>Disconnect</button>
+  </div>
+</header>
+
+<main id="find" class="wrap page">
+  <div>
+    <h1 class="hero">Run your cult from the browser.</h1>
+    <p class="lead">This page talks to Cult of the Lamb running on this computer, through the COTL Live plugin. Nothing leaves your machine.</p>
+  </div>
+  <div class="split">
+    <section class="card grow" aria-labelledby="found-h">
+      <div class="card-head">
+        <h2 id="found-h">Games on this computer</h2>
+        <button id="rescan" class="btn">Look again</button>
+      </div>
+      <ul id="found" class="found"></ul>
+      <p class="hint">Your browser may ask whether this page can reach devices on your local network. Allow it: that is how it finds the game. Safari doesn't allow it at all; use Chrome, Edge or Firefox.</p>
+    </section>
+    <section class="card side" aria-labelledby="help-h">
+      <h2 id="help-h">Nothing found?</h2>
+      <p class="muted">The game needs the COTL Live plugin.</p>
+      <ol class="steps">
+        <li><span>1</span><span>Install <a href="https://thunderstore.io/c/cult-of-the-lamb/">BepInEx</a> for Cult of the Lamb.</span></li>
+        <li><span>2</span><span>Download <a href="https://github.com/AuthFailed/cotl-live/releases/latest">CotlLive.dll</a> and put it in <code>BepInEx/plugins</code>.</span></li>
+        <li><span>3</span><span>Start the game. This page finds it within a few seconds.</span></li>
+      </ol>
+    </section>
+  </div>
+</main>
+
+<main id="dash" class="wrap page" hidden>
+  <section class="cult" aria-label="Cult">
+    <div>
+      <div class="eyebrow">Cult</div>
+      <h1 id="cult-name" class="title"></h1>
+      <div id="cult-where" class="muted"></div>
+    </div>
+    <div id="stats" class="stats"></div>
+  </section>
+
+  <div class="split">
+    <section class="card grow" aria-labelledby="actions-h">
+      <div class="card-head">
+        <h2 id="actions-h">Actions</h2>
+        <div id="tabs" class="tabs" role="tablist" aria-label="Action groups"></div>
+      </div>
+      <p id="tab-hint" class="note" hidden></p>
+      <div id="actions" class="actions"></div>
+    </section>
+    <aside class="card side" aria-labelledby="log-h">
+      <h2 id="log-h">What happened</h2>
+      <ul id="log" class="log"></ul>
+    </aside>
+  </div>
+
+  <section class="card" aria-labelledby="followers-h">
+    <div class="card-head">
+      <h2 id="followers-h">Followers</h2>
+      <label class="find">Find <input id="filter" type="search" placeholder="Name"></label>
+    </div>
+    <div id="followers" class="people"></div>
+  </section>
+</main>
+
+<main id="one" class="wrap page" hidden>
+  <a href="#" class="back">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+    All followers
+  </a>
+  <section class="who">
+    <img id="one-face" class="face" alt="" width="104" height="104">
+    <div class="grow">
+      <h1 id="one-name" class="title"></h1>
+      <div id="one-about" class="muted"></div>
+      <div id="one-traits" class="chips"></div>
+    </div>
+    <div id="one-bars" class="bars"></div>
+  </section>
+  <div class="cols">
+    <section class="card">
+      <h2>Trouble</h2>
+      <p class="muted small">Make their life harder.</p>
+      <div id="one-trouble" class="stack"></div>
+    </section>
+    <section class="card">
+      <h2>Care</h2>
+      <p class="muted small">Make it better again.</p>
+      <div id="one-care" class="stack"></div>
+    </section>
+    <section class="card stack-lg">
+      <h2>Who they are</h2>
+      <form id="one-rename" class="field">
+        <label for="one-rename-in">Name</label>
+        <div class="row"><input id="one-rename-in" maxlength="24" required><button class="btn">Rename</button></div>
+      </form>
+      <form id="one-form" class="field">
+        <label for="one-form-in">Form</label>
+        <div class="row"><select id="one-form-in"></select><button class="btn">Change</button></div>
+      </form>
+      <form id="one-trait" class="field">
+        <label for="one-trait-in">Add a trait</label>
+        <div class="row"><select id="one-trait-in"></select><button class="btn">Add</button></div>
+        <p class="muted small">To take a trait away, click it above.</p>
+      </form>
+    </section>
+  </div>
+</main>
+</body>
+</html>
