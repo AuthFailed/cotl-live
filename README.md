@@ -12,7 +12,7 @@ game runs on:
 - **Crusade**: hearts of every kind, weapon, curse, relic and tarot cards, a short invincibility, and the room's enemies.
 - **Screen**: the game's own picture, refreshed every second.
 
-- `mod/CotlLive.cs`: a BepInEx 5 plugin. It serves a small JSON API on the first free port of
+- `mod/`: a BepInEx 5 plugin, one class split over files by subject (`Followers.cs`, `Base.cs`, `Crusade.cs`, ...). It serves a small JSON API on the first free port of
   `http://127.0.0.1:47820`–`47824`, and runs every action on the game's main thread with the game's own code.
 - `site/`: the page. It tries those ports, lists the games it finds and connects when you click. Game names and
   icons come from [api.cotl.info](https://api.cotl.info), in the browser's language when the game has it.
@@ -41,6 +41,10 @@ Lamb and each follower stand in grid cells (a cell's centre is `x + 0.5`). Cells
 map.cotl.info and a save's `GridTilePosition` use them.
 
 `GET /screen`: the game's current frame as a JPEG.
+
+`GET /capabilities`: the plugin and game versions, and every action, endpoint and `/status` field this plugin has, so
+a page can tell what it can do. If a part of `/status` fails (after a game update, say), it comes back as `null` and
+its error is listed under `errors`; the rest still works.
 
 `/status` also lists the dead (`dead`), each follower's `necklace`, and during a crusade `run`: the land, layer and
 floor, weapon and curse with levels, relic, tarot cards held, hearts by kind, whether the Lamb can be hurt, and the
@@ -92,4 +96,34 @@ in a ritual); the answer names the ones that changed. Buildings, mess, crops and
 mod/build.sh "<game>/Cult Of The Lamb_Data/Managed" "<game>/BepInEx/core"
 ```
 
+It compiles every `mod/*.cs` against the game's own assemblies (copy those two folders from an installed game).
+
 To work on the page, serve `site/` on localhost (`python3 -m http.server -d site 8765`) and open `http://localhost:8765`.
+
+## Adding a feature
+
+Each file in `mod/` declares what it adds; nothing else needs registering:
+
+```csharp
+[Action("water")]              // POST /act {"action": "water", ...}
+static object Water(JObject b) { ... return Said("the crops were watered"); }
+
+[Status("crops")]              // a field of GET /status
+static object CropsStatus() => ...;
+
+[Get("/quests")]               // GET /quests
+static object Quests() => ...;
+```
+
+Everything runs on the game's main thread. Throw `Refused` with a sentence for the player when the game can't do it
+right now (it becomes a 409 with that sentence); return lists, not lazy queries, since replies are serialized on
+another thread. `[Action("...", NeedsSave = false)]` for the few actions that work without a loaded save.
+
+On the page, a new page is a file in `site/pages/` that calls `page({ id, route, nav, render })` and is listed in
+`index.html`; `core.js` routes to it and puts it in the top bar.
+
+## Testing on the game
+
+`tools/test/game.sh` runs the plugin on a real game on another PC over SSH (settings in an untracked `.env`, see the
+script). `start` builds, backs up the saves, installs the plugin and a test helper, launches the game and loads slot 0;
+`crusade` starts a crusade; `act`, `get` and `shot` talk to the plugin; `stop` quits and puts the saves back.
