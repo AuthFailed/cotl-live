@@ -7,7 +7,7 @@ const API = 'https://api.cotl.info/v1/';
 const $ = id => document.getElementById(id);
 
 let base = null, status = null, timer = null, scanTimer = null, tab = 'followers';
-const names = { skins: {}, traits: {}, items: {}, structures: {} };
+const names = { skins: {}, traits: {}, items: {}, structures: {}, weapons: {}, curses: {}, relics: {}, tarot: {} };
 const refreshers = [];  // re-fill selects that list followers or buildings, after each status
 let log = [];
 try { log = JSON.parse(localStorage.getItem('cotl-live-log') || '[]'); } catch { }
@@ -47,11 +47,16 @@ async function loadNames() {
   } catch (e) { console.warn('api.cotl.info unavailable; showing game ids', e); }
 }
 
-// A follower's skin is "Duck3" where the API knows "Duck".
-const entry = (kind, id) => id == null ? null : names[kind][id] || names[kind][String(id).replace(/\d+$/, '')];
-const nameOf = (kind, id) => entry(kind, id)?.name || id;
+// A follower's skin is "Duck3" where the API knows "Duck", and "CultLeader 2" where it knows "CultLeader_2".
+const entry = (kind, id) => {
+  if (id == null) return null;
+  const s = String(id), u = s.replace(/ /g, '_');
+  return names[kind][s] || names[kind][u] || names[kind][s.replace(/\d+$/, '')] || names[kind][u.replace(/_?\d+$/, '')];
+};
+// The API's short lists keep the game's text markup (<color=...>); a plain name reads better in a list.
+const nameOf = (kind, id) => entry(kind, id)?.name?.replace(/<[^>]+>/g, '') || id;
 const iconOf = (kind, id) => entry(kind, id)?.thumb ? API + entry(kind, id).thumb : null;
-const sorted = kind => Object.values(names[kind]).sort((a, b) => a.name.localeCompare(b.name));
+const sorted = kind => Object.values(names[kind]).map(e => ({ ...e, name: nameOf(kind, e.id) })).sort((a, b) => a.name.localeCompare(b.name));
 
 // --- finding the game ---
 
@@ -78,14 +83,14 @@ async function scan() {
 
 function showFind() {
   clearInterval(timer); base = null; status = null;
-  $('find').hidden = false; $('dash').hidden = $('one').hidden = true;
-  $('conn').hidden = $('disconnect').hidden = true;
+  $('find').hidden = false; for (const p of PAGES) $(p).hidden = true;
+  $('conn').hidden = $('disconnect').hidden = $('nav').hidden = true;
   scan(); clearInterval(scanTimer); scanTimer = setInterval(scan, 4000);
 }
 
 async function connect(url) {
   base = url; clearInterval(scanTimer);
-  $('find').hidden = true; $('conn').hidden = $('disconnect').hidden = false;
+  $('find').hidden = true; $('conn').hidden = $('disconnect').hidden = $('nav').hidden = false;
   addLog(`Connected to the game on ${url.split(':').pop()}`);
   buildActions();
   await refresh();
@@ -101,12 +106,24 @@ async function refresh() {
 
 // --- pages ---
 
+const PAGES = ['dash', 'one', 'mapPage', 'items', 'run', 'screen'];
+const ROUTES = { '#/map': 'mapPage', '#/items': 'items', '#/run': 'run', '#/screen': 'screen' };
+
 function route() {
   if (!base || !status) return;
   const m = location.hash.match(/^#\/f\/(\d+)$/);
   const f = m && status.followers?.find(x => x.id === +m[1]);
-  $('dash').hidden = !!f; $('one').hidden = !f;
-  if (f) renderFollower(f); else renderDash();
+  const page = f ? 'one' : ROUTES[location.hash] || 'dash';
+  const opening = $(page).hidden;
+  for (const p of PAGES) $(p).hidden = p !== page;
+  for (const a of document.querySelectorAll('#nav a')) a.toggleAttribute('aria-current', (ROUTES[a.getAttribute('href')] || 'dash') === page && !f);
+  for (const a of document.querySelectorAll('#nav a[aria-current]')) a.setAttribute('aria-current', 'page');
+  if (page === 'one') renderFollower(f);
+  if (page === 'dash') renderDash();
+  if (page === 'mapPage' && opening) showMap();
+  if (page === 'items') renderItems(opening);
+  if (page === 'run') renderRun(opening);
+  if (page === 'screen' && opening) screenLoop();
   for (const r of refreshers) r();
 }
 window.addEventListener('hashchange', () => { route(); scrollTo(0, 0); });
@@ -162,6 +179,10 @@ const ACTIONS = {
     { action: 'rest', name: 'Rest', desc: 'Followers are fully rested.', target: 'many', all: true },
     { action: 'faithful', name: 'End dissent', desc: 'Dissenters come back to the faith.', target: 'many', all: true },
     { action: 'levelup', name: 'Ready to level up', desc: 'Fills devotion: bless them to level up.', target: 'many' },
+    { action: 'bless', name: 'Bless', desc: 'Blesses followers, as you do in the cult.', target: 'many', all: true },
+    { action: 'inspire', name: 'Inspire', desc: 'Inspires followers, as you do in the cult.', target: 'many', all: true },
+    { action: 'happy', name: 'Full faith', desc: 'Followers’ faith goes to the top.', target: 'many', all: true },
+    { action: 'necklace', name: 'Give necklace', desc: 'Puts a necklace on a follower.', target: 'one', param: 'necklace' },
     { action: 'addTrait', name: 'Add trait', desc: 'Gives a follower a trait.', target: 'one', param: 'trait' },
     { action: 'removeTrait', name: 'Remove trait', desc: 'Takes a trait away.', target: 'one', param: 'trait' },
     { action: 'rename', name: 'Rename', desc: 'Gives a follower a new name.', target: 'one', param: 'name' },
@@ -169,6 +190,7 @@ const ACTIONS = {
   ],
   cult: [
     { action: 'recruit', name: 'New recruit', desc: 'A new follower waits at the temple.', param: 'recruitName' },
+    { action: 'revive', name: 'Bring back the dead', desc: 'A dead follower waits at the temple to be welcomed again.', param: 'dead' },
     { action: 'remove', name: 'Remove building', desc: 'Demolishes a building, as the build menu does.', param: 'building', need: 'base', danger: true, icon: ['structures', 'SHRINE'] },
     { action: 'poop', name: 'Spawn poop', desc: 'Poop appears next to followers.', param: 'count', need: 'base' },
     { action: 'vomit', name: 'Spawn vomit', desc: 'Vomit appears next to followers.', param: 'count', need: 'base' },
@@ -282,6 +304,15 @@ function paramInput(a) {
       const el = label(h('select', { 'data-what': 'weather' }, ...Object.entries(WEATHER).map(([k, v]) => new Option(v[0].toUpperCase() + v.slice(1), k))));
       return { el, value: () => ({ weather: el.value }) };
     }
+    case 'necklace': {
+      const el = label(h('select', { 'data-what': 'necklace' }, ...necklaces()));
+      return { el, value: () => ({ item: el.value }) };
+    }
+    case 'dead': {
+      const el = label(liveSelect(() => (status?.dead || []).slice().reverse().map(d => new Option(d.name, d.id))));
+      el.dataset.what = 'who';
+      return { el, value: () => (el.value ? { id: +el.value } : {}) };
+    }
     case 'building': {
       const el = label(liveSelect(() => [new Option('Random kind', ''), ...(status?.buildings || [])
         .slice().sort((x, y) => x.name.localeCompare(y.name) || x.id - y.id).map(b => new Option(`${b.name} #${b.id}`, b.id))]));
@@ -311,7 +342,11 @@ async function act(body, what, button) {
     .replace(body.item, () => nameOf('items', body.item))
     .replace(body.trait, () => nameOf('traits', body.trait))
     .replace(body.weather, () => WEATHER[body.weather])
-    .replace(body.skin, () => nameOf('skins', body.skin));
+    .replace(body.skin, () => nameOf('skins', body.skin))
+    .replace(body.weapon, () => nameOf('weapons', body.weapon))
+    .replace(body.curse, () => nameOf('curses', body.curse))
+    .replace(body.relic, () => nameOf('relics', body.relic))
+    .replace(body.card, () => nameOf('tarot', body.card));
   try { addLog(readable((await call('/act', body)).message)); }
   catch (e) { addLog(`${what}: ${e.message}`, true); }
   finally { if (button) button.disabled = false; }
@@ -350,7 +385,9 @@ function renderFollower(f) {
       button('Kill', { action: 'kill' }, 'asks first', true));
     $('one-care').replaceChildren(
       button('Cure', { action: 'cure' }, 'ends illness and injury'), button('Feed', { action: 'feed' }), button('Let them rest', { action: 'rest' }),
-      button('Bring back to faith', { action: 'faithful' }, 'ends dissent'), button('Ready to level up', { action: 'levelup' }));
+      button('Bring back to faith', { action: 'faithful' }, 'ends dissent'), button('Ready to level up', { action: 'levelup' }),
+      button('Bless', { action: 'bless' }), button('Inspire', { action: 'inspire' }), button('Full faith', { action: 'happy' }));
+    $('one-necklace-in').replaceChildren(...necklaces());
   }
   $('one-face').src = iconOf('skins', f.skin) || '';
   $('one-face').alt = `${nameOf('skins', f.skin)} form`;
@@ -375,6 +412,96 @@ function onForm(id, body) {
 onForm('one-rename', () => ({ action: 'rename', name: $('one-rename-in').value }));
 onForm('one-form', () => ({ action: 'form', ...($('one-form-in').value ? { skin: $('one-form-in').value } : {}) }));
 onForm('one-trait', () => ({ action: 'addTrait', trait: $('one-trait-in').value }));
+onForm('one-necklace', () => ({ action: 'necklace', item: $('one-necklace-in').value }));
+
+const necklaces = () => sorted('items').filter(i => i.id.startsWith('Necklace_')).map(i => new Option(i.name, i.id));
+
+// --- inventory ---
+
+let itemInfo = null;  // the API's full item list, for categories, loaded the first time the page opens
+
+async function renderItems(opening) {
+  if (opening) {
+    $('items-add-item').replaceChildren(...sorted('items').map(i => new Option(i.name, i.id)));
+    if (!itemInfo) {
+      try { itemInfo = Object.fromEntries((await fetch(API + 'items.json').then(r => r.json())).map(i => [i.id, i])); } catch { itemInfo = {}; }
+    }
+  }
+  const q = $('items-filter').value.trim().toLowerCase();
+  const chest = (status.chest || []).filter(c => !q || nameOf('items', c.item).toLowerCase().includes(q) || c.item.toLowerCase().includes(q));
+  const groups = {};
+  for (const c of chest) (groups[itemInfo?.[c.item]?.category || 'OTHER'] ??= []).push(c);
+  const focused = document.activeElement?.dataset.item;  // don't rebuild the row being typed in
+  if (focused && document.activeElement.closest('#items-groups')) return;
+  $('items-groups').replaceChildren(...(chest.length ? Object.keys(groups).sort().map(g => h('section', { class: 'card' },
+    h('h2', {}, g === 'NONE' || g === 'OTHER' ? 'Other' : g[0] + g.slice(1).toLowerCase().replace(/_/g, ' ')),
+    h('div', { class: 'item-grid', style: 'margin-top: 12px' }, ...groups[g].sort((a, b) => nameOf('items', a.item).localeCompare(nameOf('items', b.item))).map(c => {
+      const n = h('input', { type: 'number', min: 0, max: 9999, value: c.count, 'data-item': c.item, 'aria-label': `${nameOf('items', c.item)}: how many` });
+      const set = v => act({ action: 'set', item: c.item, amount: Math.max(0, v) }, nameOf('items', c.item));
+      n.addEventListener('change', () => set(+n.value || 0));
+      return h('div', { class: 'item' },
+        iconOf('items', c.item) && h('img', { src: iconOf('items', c.item), alt: '', loading: 'lazy' }),
+        h('span', { class: 'name', title: c.item }, nameOf('items', c.item)),
+        h('button', { class: 'btn', 'aria-label': `One less ${nameOf('items', c.item)}`, onclick: () => set(c.count - 1) }, '−'),
+        n,
+        h('button', { class: 'btn', 'aria-label': `One more ${nameOf('items', c.item)}`, onclick: () => set(c.count + 1) }, '+'));
+    })))) : [h('p', { class: 'muted' }, q ? 'Nothing matches.' : 'The chest is empty.')]));
+}
+$('items-filter').addEventListener('input', () => status && renderItems(false));
+$('items-add').addEventListener('submit', e => { e.preventDefault(); act({ action: 'give', item: $('items-add-item').value, amount: +$('items-add-n').value || 1 }, 'Add', e.submitter); });
+
+// --- crusade ---
+
+const LANDS = { Dungeon1: 'Darkwood', Dungeon2: 'Anura', Dungeon3: 'Anchordeep', Dungeon4: 'Silk Cradle', Dungeon5: 'Woolhaven', Dungeon6: 'Ewefall' };
+const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
+
+function renderRun(opening) {
+  const r = status.run;
+  $('run-away').hidden = !!r; $('run-body').hidden = !r;
+  $('run-title').textContent = r ? LANDS[r.land.split('_')[0]] || r.land : 'Not on a crusade';
+  $('run-where').textContent = r ? `Floor ${r.floor} · layer ${r.layer}${r.invincible ? ' · can’t be hurt right now' : ''}` : '';
+  if (opening) {
+    const fill = (id, kind, filter = () => true) => $(id).replaceChildren(...sorted(kind).filter(filter).map(x => new Option(x.name, x.id)));
+    fill('run-weapon-in', 'weapons'); fill('run-curse-in', 'curses'); fill('run-relic-in', 'relics'); fill('run-card-in', 'tarot');
+    for (const id of ['run-weapon-lvl', 'run-curse-lvl']) $(id).replaceChildren(...ROMAN.map((n, i) => new Option(`Level ${n}`, i)));
+  }
+  if (!r) return;
+  const heart = (n, ch, color, label) => Array.from({ length: Math.ceil(n / 2) }, (_, i) => h('span', { style: `color: ${color}`, title: label }, n - i * 2 === 1 ? '♡' : ch));
+  $('run-hearts').replaceChildren(...heart(r.hearts.red, '♥', '#EE6A5E', 'red'), ...heart(r.hearts.blue, '♥', '#6FB7E8', 'blue'),
+    ...heart(r.hearts.black, '♥', '#8F826F', 'black'), ...heart(r.hearts.spirit, '♥', '#C9A3D6', 'spirit'));
+  const gear = (label, kind, id, level) => stat(label, id && id !== 'None' ? `${nameOf(kind, id)}${level != null ? ` ${ROMAN[level] || level}` : ''}` : 'none', iconOf(kind, id));
+  $('run-gear').replaceChildren(gear('Weapon', 'weapons', r.weapon, r.weaponLevel), gear('Curse', 'curses', r.curse, r.curseLevel), gear('Relic', 'relics', r.relic));
+  $('run-tarot').replaceChildren(...(r.tarot.length ? r.tarot.map(t => h('span', { class: 'chip', style: 'cursor: default' },
+    iconOf('tarot', t) && h('img', { src: iconOf('tarot', t), alt: '' }), nameOf('tarot', t))) : [h('span', { class: 'muted small' }, 'No cards yet.')]));
+  $('run-enemies').replaceChildren(...(r.enemies.length ? r.enemies.map(e => h('li', {}, h('span', { style: 'flex: 1' }, e.name), h('span', { class: 'muted' }, `${e.hp} / ${e.max}`)))
+    : [h('li', { class: 'muted' }, 'No enemies in this room.')]));
+}
+for (const b of document.querySelectorAll('[data-run]')) b.addEventListener('click', () => act(JSON.parse(b.dataset.run), b.textContent, b));
+const runForm = (id, body) => $(id).addEventListener('submit', e => { e.preventDefault(); act(body(), e.submitter?.textContent || 'Equip', e.submitter); });
+runForm('run-weapon', () => ({ action: 'weapon', weapon: $('run-weapon-in').value, level: +$('run-weapon-lvl').value }));
+runForm('run-curse', () => ({ action: 'curse', curse: $('run-curse-in').value, level: +$('run-curse-lvl').value }));
+runForm('run-relic', () => ({ action: 'relic', relic: $('run-relic-in').value }));
+runForm('run-card', () => ({ action: 'tarot', card: $('run-card-in').value }));
+
+// --- the game's screen ---
+
+let shotUrl = null, shooting = false;
+async function screenLoop() {
+  if (shooting) return;
+  shooting = true;
+  while (base && !$('screen').hidden) {
+    try {
+      const blob = await fetch(base + '/screen', { signal: AbortSignal.timeout(8000) }).then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); });
+      const url = URL.createObjectURL(blob);
+      $('screen-img').src = url;
+      if (shotUrl) URL.revokeObjectURL(shotUrl);
+      shotUrl = url;
+    } catch { }
+    await new Promise(r => setTimeout(r, $('screen-live').checked ? 1000 : 600000));
+    while (!$('screen-live').checked && base && !$('screen').hidden) await new Promise(r => setTimeout(r, 500));
+  }
+  shooting = false;
+}
 
 $('filter').addEventListener('input', () => status && renderDash());
 $('rescan').onclick = scan;

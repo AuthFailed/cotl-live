@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Grenze:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="app.js" defer></script>
+<script src="map.js" defer></script>
 </head>
 <body>
 <header class="bar">
@@ -18,6 +19,13 @@
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c-3 2-5 4.5-5 8a5 5 0 0 0 10 0c0-3.5-2-6-5-8z"/><path d="M9 4.5C7 3.5 5 3.6 4 4.5M15 4.5c2-1 4-.9 5 0"/><circle cx="10" cy="11.5" r=".6" fill="currentColor"/><circle cx="14" cy="11.5" r=".6" fill="currentColor"/></svg>
       <span>COTL Live</span>
     </a>
+    <nav id="nav" class="nav" aria-label="Pages" hidden>
+      <a href="#/">Cult</a>
+      <a href="#/map">Map</a>
+      <a href="#/items">Inventory</a>
+      <a href="#/run">Crusade</a>
+      <a href="#/screen">Screen</a>
+    </nav>
     <span id="conn" class="pill" hidden><span class="dot" aria-hidden="true"></span><span id="conn-text"></span></span>
     <button id="disconnect" class="btn" hidden>Disconnect</button>
   </div>
@@ -123,8 +131,105 @@
         <div class="row"><select id="one-trait-in"></select><button class="btn">Add</button></div>
         <p class="muted small">To take a trait away, click it above.</p>
       </form>
+      <form id="one-necklace" class="field">
+        <label for="one-necklace-in">Necklace</label>
+        <div class="row"><select id="one-necklace-in"></select><button class="btn">Give</button></div>
+      </form>
     </section>
   </div>
+</main>
+
+<main id="mapPage" class="map-page" hidden>
+  <canvas id="map" aria-label="Map of the cult: click a building to change it, or empty ground to build"></canvas>
+  <div class="map-tools">
+    <button id="map-build" class="btn primary">Build</button>
+    <label class="switch"><input id="map-free" type="checkbox"> Free</label>
+    <label class="switch"><input id="map-instant" type="checkbox"> Instant</label>
+    <span class="grow-gap"></span>
+    <button id="map-zoom-out" class="btn" aria-label="Zoom out">−</button>
+    <button id="map-zoom-in" class="btn" aria-label="Zoom in">+</button>
+    <button id="map-fit" class="btn">Whole cult</button>
+    <button id="map-shot" class="btn">Game screen</button>
+  </div>
+  <p id="map-note" class="note map-note" hidden></p>
+  <div id="map-hint" class="map-hint" hidden></div>
+  <aside id="map-card" class="card map-card" hidden></aside>
+  <aside id="build-menu" class="card build-menu" hidden></aside>
+</main>
+
+<main id="items" class="wrap page" hidden>
+  <div class="card-head">
+    <h1 class="title">Inventory</h1>
+    <label class="find">Find <input id="items-filter" type="search" placeholder="Item"></label>
+  </div>
+  <section class="card">
+    <div class="card-head">
+      <h2>Add any item</h2>
+    </div>
+    <form id="items-add" class="row">
+      <select id="items-add-item" aria-label="Item"></select>
+      <input id="items-add-n" type="number" min="1" max="999" value="10" aria-label="How many">
+      <button class="btn primary">Add</button>
+    </form>
+  </section>
+  <div id="items-groups" class="stack-lg"></div>
+</main>
+
+<main id="run" class="wrap page" hidden>
+  <div>
+    <div class="eyebrow">Crusade</div>
+    <h1 id="run-title" class="title"></h1>
+    <div id="run-where" class="muted"></div>
+  </div>
+  <p id="run-away" class="note" hidden>The Lamb isn't on a crusade right now. This page fills in as soon as one starts.</p>
+  <div id="run-body" class="cols">
+    <section class="card stack-lg">
+      <h2>The Lamb</h2>
+      <div id="run-hearts" class="hearts"></div>
+      <div class="row">
+        <button class="btn" data-run='{"action":"lambHeal"}'>Heal a heart</button>
+        <button class="btn" data-run='{"action":"hearts","kind":"blue","amount":2}'>+1 blue heart</button>
+        <button class="btn" data-run='{"action":"hearts","kind":"black","amount":2}'>+1 black heart</button>
+        <button class="btn" data-run='{"action":"hearts","kind":"spirit","amount":2}'>+1 spirit heart</button>
+        <button class="btn" data-run='{"action":"lambHurt"}'>Hurt half a heart</button>
+        <button class="btn" data-run='{"action":"invincible","seconds":30}'>Can't be hurt for 30 s</button>
+      </div>
+    </section>
+    <section class="card stack-lg">
+      <h2>Weapon and curse</h2>
+      <div id="run-gear" class="gear"></div>
+      <form id="run-weapon" class="field"><label for="run-weapon-in">Weapon</label>
+        <div class="row"><select id="run-weapon-in"></select><select id="run-weapon-lvl" aria-label="Weapon level"></select><button class="btn">Equip</button></div></form>
+      <form id="run-curse" class="field"><label for="run-curse-in">Curse</label>
+        <div class="row"><select id="run-curse-in"></select><select id="run-curse-lvl" aria-label="Curse level"></select><button class="btn">Equip</button></div></form>
+      <form id="run-relic" class="field"><label for="run-relic-in">Relic</label>
+        <div class="row"><select id="run-relic-in"></select><button class="btn">Equip</button></div></form>
+    </section>
+    <section class="card stack-lg">
+      <h2>Tarot</h2>
+      <div id="run-tarot" class="chips"></div>
+      <form id="run-card" class="field"><label for="run-card-in">Give a card</label>
+        <div class="row"><select id="run-card-in"></select><button class="btn">Give</button></div></form>
+      <button class="btn" data-run='{"action":"tarot"}'>Draw a random card</button>
+    </section>
+    <section class="card stack-lg">
+      <h2>Enemies</h2>
+      <ul id="run-enemies" class="log"></ul>
+      <div class="row">
+        <button class="btn danger" data-run='{"action":"killEnemies"}'>Defeat them all</button>
+        <button class="btn" data-run='{"action":"hurtEnemies"}'>Halve their health</button>
+        <button class="btn" data-run='{"action":"healEnemies"}'>Heal them</button>
+      </div>
+    </section>
+  </div>
+</main>
+
+<main id="screen" class="wrap page" hidden>
+  <div class="card-head">
+    <h1 class="title">Game screen</h1>
+    <label class="switch"><input id="screen-live" type="checkbox" checked> Keep refreshing</label>
+  </div>
+  <img id="screen-img" class="shot" alt="The game's screen right now">
 </main>
 </body>
 </html>
