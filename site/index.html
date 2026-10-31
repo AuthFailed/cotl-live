@@ -9,8 +9,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Grenze:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-<script src="app.js" defer></script>
-<script src="map.js" defer></script>
+<script src="core.js" defer></script>
+<script src="pages/cult.js" defer></script>
+<script src="pages/follower.js" defer></script>
+<script src="pages/map.js" defer></script>
+<script src="pages/items.js" defer></script>
+<script src="pages/run.js" defer></script>
+<script src="pages/screen.js" defer></script>
 </head>
 <body>
 <header class="bar">
@@ -19,13 +24,7 @@
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c-3 2-5 4.5-5 8a5 5 0 0 0 10 0c0-3.5-2-6-5-8z"/><path d="M9 4.5C7 3.5 5 3.6 4 4.5M15 4.5c2-1 4-.9 5 0"/><circle cx="10" cy="11.5" r=".6" fill="currentColor"/><circle cx="14" cy="11.5" r=".6" fill="currentColor"/></svg>
       <span>COTL Live</span>
     </a>
-    <nav id="nav" class="nav" aria-label="Pages" hidden>
-      <a href="#/">Cult</a>
-      <a href="#/map">Map</a>
-      <a href="#/items">Inventory</a>
-      <a href="#/run">Crusade</a>
-      <a href="#/screen">Screen</a>
-    </nav>
+    <nav id="nav" class="nav" aria-label="Pages" hidden></nav>
     <span id="conn" class="pill" hidden><span class="dot" aria-hidden="true"></span><span id="conn-text"></span></span>
     <button id="disconnect" class="btn" hidden>Disconnect</button>
   </div>

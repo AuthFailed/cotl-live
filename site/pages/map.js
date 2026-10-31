@@ -382,3 +382,5 @@ async function showMap() {
   clearInterval(map.timer);
   map.timer = setInterval(() => { if ($('mapPage').hidden || !base) clearInterval(map.timer); else refreshMap(); }, 1500);
 }
+
+page({ id: 'mapPage', route: '#/map', nav: 'Map', render: opening => { if (opening) showMap(); } });
